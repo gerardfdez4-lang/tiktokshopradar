@@ -1,0 +1,13 @@
+#!/usr/bin/expect -f
+# Instala la clave pública en el VPS usando la contraseña de root (una sola vez).
+set timeout 40
+set pubkey "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILHFRicFEWPzOu9zm4TEyX+cKSMufGNw2VAQS2rr15RJ gerardfdez4-lang"
+set pass "Lv3QsOBaNZ@51sj,"
+spawn ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no -o PreferredAuthentications=password root@72.62.29.2 "mkdir -p ~/.ssh && chmod 700 ~/.ssh && grep -qF '$pubkey' ~/.ssh/authorized_keys 2>/dev/null || echo '$pubkey' >> ~/.ssh/authorized_keys ; chmod 600 ~/.ssh/authorized_keys && echo KEY_INSTALLED_OK"
+expect {
+  "*yes/no*" { send "yes\r"; exp_continue }
+  "*assword:*" { send "$pass\r"; exp_continue }
+  "KEY_INSTALLED_OK" { puts "\n>>> CLAVE INSTALADA <<<"; exp_continue }
+  timeout { puts "\n>>> TIMEOUT <<<"; exit 1 }
+  eof { }
+}

@@ -1,0 +1,16 @@
+<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF2D7E"/>
+      <stop offset="0.55" stop-color="#B23BFF"/>
+      <stop offset="1" stop-color="#7A3DFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="26" fill="url(#bg)"/>
+  <!-- línea de crecimiento hacia la meta -->
+  <path d="M24 66 L42 48 L55 59 L74 32" stroke="white" stroke-width="8.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- punta de flecha -->
+  <path d="M61 32 H74 V45" stroke="white" stroke-width="8.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- meta / chispa -->
+  <circle cx="24" cy="66" r="6.5" fill="white"/>
+</svg>
