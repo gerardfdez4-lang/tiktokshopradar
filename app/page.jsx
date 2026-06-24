@@ -153,11 +153,7 @@ export default function Home() {
             <span className="brand-mark"><LogoMark /></span>
             <span className="wordmark"><span>first</span><span className="accent">100</span><span>sales</span></span>
           </div>
-          <div className="nav-links">
-            <a href="#ranking">Ranking</a>
-            <a href="#top">Top del día</a>
-            <a className="nav-cta" href="#ranking">Explorar productos</a>
-          </div>
+          <span className="nav-tag">Radar de productos · TikTok Shop</span>
         </div>
       </nav>
 
