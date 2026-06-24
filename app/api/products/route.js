@@ -12,7 +12,8 @@ export async function GET(request) {
   const pageSize = Number(searchParams.get("pageSize") || 20);
 
   if (process.env.DEMO_MODE === "1") {
-    const items = page === 1 ? SAMPLE_RANKING : [];
+    const start = (page - 1) * pageSize;
+    const items = SAMPLE_RANKING.slice(start, start + pageSize);
     return Response.json({ ok: true, items, demo: true });
   }
 

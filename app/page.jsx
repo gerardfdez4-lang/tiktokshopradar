@@ -20,6 +20,9 @@ const SORTS = [
   { value: "creators", label: "Nº de creators" },
 ];
 
+const TARGET = 50;
+const PAGE_SIZE = 10;
+
 function fmtMoney(n) {
   if (n == null) return "—";
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
@@ -51,18 +54,16 @@ function LogoMark() {
   );
 }
 
-// Contador animado de 0 → value
 function useCountUp(value, duration = 900) {
   const [n, setN] = useState(0);
   const ref = useRef();
   useEffect(() => {
     const start = performance.now();
-    const from = 0;
     cancelAnimationFrame(ref.current);
     const tick = (t) => {
       const p = Math.min(1, (t - start) / duration);
       const eased = 1 - Math.pow(1 - p, 3);
-      setN(from + (value - from) * eased);
+      setN(value * eased);
       if (p < 1) ref.current = requestAnimationFrame(tick);
     };
     ref.current = requestAnimationFrame(tick);
@@ -83,38 +84,66 @@ export default function Home() {
   const [region, setRegion] = useState("US");
   const [date, setDate] = useState(yesterday());
   const [sort, setSort] = useState("gmv");
+  const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
-  const [raw, setRaw] = useState([]);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [isDemo, setIsDemo] = useState(false);
   const [selected, setSelected] = useState(null);
+  const itemsRef = useRef([]);
+  const loadingRef = useRef(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  useEffect(() => { itemsRef.current = items; }, [items]);
+
+  const fetchPage = useCallback(async (p, append) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    if (append) setLoadingMore(true);
+    else { setLoading(true); setError(null); }
     try {
-      const qs = new URLSearchParams({ region, date, rankField: 1, page, pageSize: 10 });
+      const qs = new URLSearchParams({ region, date, rankField: 1, page: p, pageSize: PAGE_SIZE });
       const res = await fetch(`/api/products?${qs}`);
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || "Error");
-      setRaw(json.items);
       setIsDemo(!!json.demo);
+      const incoming = json.items || [];
+      const base = append ? itemsRef.current : [];
+      const merged = [...base, ...incoming].slice(0, TARGET);
+      setItems(merged);
+      setPage(p);
+      const apiExhausted = incoming.length < PAGE_SIZE;
+      setHasMore(merged.length < TARGET && !apiExhausted);
     } catch (e) {
-      setError(e.message);
-      setRaw([]);
+      if (!append) { setError(e.message); setItems([]); setHasMore(false); }
     } finally {
+      loadingRef.current = false;
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, [region, date, page]);
+  }, [region, date]);
 
-  useEffect(() => { load(); }, [load]);
+  // Carga inicial / al cambiar mercado o fecha
+  useEffect(() => { loadingRef.current = false; fetchPage(1, false); }, [fetchPage]);
 
-  const items = sortItems(raw, sort);
-  const maxGmv = Math.max(1, ...items.map((p) => p.gmv || 0));
-  const totalGmv = items.reduce((s, p) => s + (p.gmv || 0), 0);
-  const totalUnits = items.reduce((s, p) => s + (p.unitsSold || 0), 0);
-  const ready = !loading && !error && items.length > 0;
+  // Scroll infinito: carga la siguiente página al acercarse al final
+  useEffect(() => {
+    const onScroll = () => {
+      if (!hasMore || loadingRef.current) return;
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 500) {
+        fetchPage(page + 1, true);
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [hasMore, page, fetchPage]);
+
+  const sorted = sortItems(items, sort);
+  const maxGmv = Math.max(1, ...sorted.map((p) => p.gmv || 0));
+  const totalGmv = sorted.reduce((s, p) => s + (p.gmv || 0), 0);
+  const totalUnits = sorted.reduce((s, p) => s + (p.unitsSold || 0), 0);
+  const ready = !loading && !error && sorted.length > 0;
 
   return (
     <>
@@ -152,13 +181,13 @@ export default function Home() {
         <div className="controls">
           <div className="field">
             <label>Mercado</label>
-            <select value={region} onChange={(e) => { setPage(1); setRegion(e.target.value); }}>
+            <select value={region} onChange={(e) => setRegion(e.target.value)}>
               {REGIONS.map((r) => <option key={r.code} value={r.code}>{r.name}</option>)}
             </select>
           </div>
           <div className="field">
             <label>Fecha</label>
-            <input type="date" value={date} onChange={(e) => { setPage(1); setDate(e.target.value); }} />
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div className="field">
             <label>Ordenar por</label>
@@ -166,24 +195,24 @@ export default function Home() {
               {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
-          <button className="btn" onClick={load} disabled={loading}>{loading ? "Cargando…" : "Actualizar"}</button>
+          <button className="btn" onClick={() => fetchPage(1, false)} disabled={loading}>{loading ? "Cargando…" : "Actualizar"}</button>
           {isDemo && <span className="demo-pill">✦ Datos de ejemplo (demo)</span>}
         </div>
 
         <div className="stats">
-          <div className="stat rise"><div className="k">Productos</div><div className="v">{ready ? <StatNum value={items.length} /> : "—"}</div></div>
-          <div className="stat rise" style={{ animationDelay: "60ms" }}><div className="k">GMV combinado (página)</div><div className="v accent">{ready ? <StatMoney value={totalGmv} /> : "—"}</div></div>
-          <div className="stat rise" style={{ animationDelay: "120ms" }}><div className="k">Unidades vendidas (página)</div><div className="v">{ready ? <StatNum value={totalUnits} /> : "—"}</div></div>
+          <div className="stat rise"><div className="k">Productos cargados</div><div className="v">{ready ? <StatNum value={sorted.length} /> : "—"}</div></div>
+          <div className="stat rise" style={{ animationDelay: "60ms" }}><div className="k">GMV combinado</div><div className="v accent">{ready ? <StatMoney value={totalGmv} /> : "—"}</div></div>
+          <div className="stat rise" style={{ animationDelay: "120ms" }}><div className="k">Unidades vendidas</div><div className="v">{ready ? <StatNum value={totalUnits} /> : "—"}</div></div>
         </div>
 
-        {ready && page === 1 && items.length >= 3 && (
+        {ready && sorted.length >= 3 && (
           <section id="top">
             <div className="sec-head">
               <h2>🏆 Top 3 del día</h2>
               <span className="hint">{REGIONS.find((r) => r.code === region)?.name} · {prettyDate(date)}</span>
             </div>
             <div className="podium">
-              {items.slice(0, 3).map((p) => (
+              {sorted.slice(0, 3).map((p) => (
                 <div key={p.productId} className={`pod rise feat-${p.rank}`} style={{ animationDelay: `${p.rank * 70}ms` }} onClick={() => setSelected(p)}>
                   <span className={`pod-rank pod-${p.rank}`}>{p.rank}</span>
                   <div className="pod-name">{p.name}</div>
@@ -224,11 +253,11 @@ export default function Home() {
                 {!loading && error && (
                   <tr><td colSpan={7} className="msg error"><div className="big">No se pudieron cargar los productos</div><div>{error}</div></td></tr>
                 )}
-                {!loading && !error && items.length === 0 && (
+                {!loading && !error && sorted.length === 0 && (
                   <tr><td colSpan={7} className="msg"><div className="big">Sin datos para este mercado y fecha</div><div>Prueba con otro mercado o una fecha de los últimos 30 días.</div></td></tr>
                 )}
-                {ready && items.map((p, i) => (
-                  <tr key={p.productId} className="rise" style={{ animationDelay: `${Math.min(i, 10) * 35}ms` }} onClick={() => setSelected(p)}>
+                {ready && sorted.map((p, i) => (
+                  <tr key={p.productId} className="rise" style={{ animationDelay: `${Math.min(i % PAGE_SIZE, 10) * 35}ms` }} onClick={() => setSelected(p)}>
                     <td><span className={`rank ${p.rank <= 3 ? `top rank-${p.rank}` : ""}`}>{p.rank}</span></td>
                     <td className="pname"><div className="line">{p.name}</div></td>
                     <td className="num gmv-cell">
@@ -245,9 +274,9 @@ export default function Home() {
             </table>
           </div>
           <div className="pager">
-            <button className="btn btn-ghost" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>← Anterior</button>
-            <span className="pill">Página {page}</span>
-            <button className="btn btn-ghost" disabled={loading || raw.length < 10} onClick={() => setPage((p) => p + 1)}>Siguiente →</button>
+            {loadingMore && <span className="spin" />}
+            {!loadingMore && ready && !hasMore && <span className="pill">Mostrando los {sorted.length} productos top</span>}
+            {!loadingMore && ready && hasMore && <span className="pill">Baja para ver más ↓</span>}
           </div>
         </div>
 
