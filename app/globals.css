@@ -188,6 +188,29 @@ tbody tr:hover { background: var(--panel-2); }
 .box { background: var(--panel); border: 1px solid var(--border); border-radius: 13px; padding: 16px; }
 .desc { white-space: pre-wrap; font-size: 13px; line-height: 1.6; color: #c2ccc6; max-height: 300px; overflow-y: auto; }
 .link-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; background: var(--grad-2); color: #06120b; padding: 10px 16px; border-radius: 10px; font-family: var(--font-display); font-weight: 700; font-size: 14px; box-shadow: 0 6px 18px rgba(34,229,138,.3); }
+/* Vídeos de referencia */
+.vid-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.vid-card { display: block; }
+.vid-thumb {
+  position: relative; aspect-ratio: 9 / 14; border-radius: 12px; overflow: hidden;
+  background: linear-gradient(160deg, #1d2a24, #141a22);
+  background-size: cover; background-position: center;
+  border: 1px solid var(--border); display: grid; place-items: center;
+  transition: transform .15s, border-color .15s;
+}
+.vid-card:hover .vid-thumb { transform: translateY(-2px); border-color: var(--green); }
+.vid-play { width: 38px; height: 38px; border-radius: 50%; background: rgba(0,0,0,.45); backdrop-filter: blur(2px); display: grid; place-items: center; color: #fff; font-size: 13px; padding-left: 2px; }
+.vid-views { position: absolute; bottom: 7px; left: 7px; font-size: 11px; font-weight: 600; color: #fff; background: rgba(0,0,0,.5); padding: 2px 7px; border-radius: 999px; }
+.vid-creator { font-size: 12px; color: var(--muted); margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Creators */
+.creator-list { display: flex; flex-wrap: wrap; gap: 9px; }
+.creator-chip { display: flex; align-items: center; gap: 9px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 8px 13px 8px 8px; }
+.creator-av { width: 32px; height: 32px; border-radius: 50%; background: var(--grad-2); color: #06120b; font-family: var(--font-display); font-weight: 800; font-size: 14px; display: grid; place-items: center; flex: none; }
+.creator-info { display: flex; flex-direction: column; line-height: 1.25; }
+.creator-info b { font-size: 13px; font-weight: 600; }
+.creator-info small { font-size: 11.5px; color: var(--muted); }
+
 .sku-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; }
 .sku-row + .sku-row { border-top: 1px solid var(--border); }
 .spin { display: inline-block; width: 22px; height: 22px; border: 2.5px solid var(--border-2); border-top-color: var(--green); border-radius: 50%; animation: spin .7s linear infinite; }

@@ -33,6 +33,12 @@ function fmtNum(n) {
   if (n == null) return "—";
   return new Intl.NumberFormat("es-ES").format(Math.round(n));
 }
+function fmtCompact(n) {
+  if (n == null) return "—";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
 function yesterday() {
   const d = new Date();
   d.setDate(d.getDate() - 1);
@@ -348,6 +354,38 @@ function ProductDrawer({ item, onClose }) {
               </div>
               <a className="link-btn" href={detail.tiktokUrl} target="_blank" rel="noreferrer">Abrir en TikTok Shop ↗</a>
             </div>
+
+            {detail.videos?.length > 0 && (
+              <>
+                <div className="section-title">🎬 Vídeos de referencia</div>
+                <div className="vid-grid">
+                  {detail.videos.map((v) => (
+                    <a key={v.id} className="vid-card" href={v.url} target="_blank" rel="noreferrer">
+                      <div className="vid-thumb" style={v.cover ? { backgroundImage: `url(${v.cover})` } : undefined}>
+                        <span className="vid-play">▶</span>
+                        <span className="vid-views">{fmtCompact(v.views)} views</span>
+                      </div>
+                      <div className="vid-creator">{v.creator}</div>
+                    </a>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {detail.creators?.length > 0 && (
+              <>
+                <div className="section-title">⭐ Creators que lo promocionan</div>
+                <div className="creator-list">
+                  {detail.creators.map((c, i) => (
+                    <div key={i} className="creator-chip">
+                      <span className="creator-av">{(c.name || c.handle || "?").replace("@", "").slice(0, 1).toUpperCase()}</span>
+                      <span className="creator-info"><b>{c.handle || c.name}</b><small>{fmtCompact(c.followers)} seguidores</small></span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
             {detail.skus.length > 0 && (
               <>
                 <div className="section-title">Variantes ({detail.skus.length})</div>
