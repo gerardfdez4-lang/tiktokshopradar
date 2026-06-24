@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 const REGIONS = [
   { code: "US", name: "🇺🇸 EE.UU." },
@@ -14,9 +14,10 @@ const REGIONS = [
   { code: "MX", name: "🇲🇽 México" },
 ];
 
-const RANK_FIELDS = [
-  { value: 1, label: "GMV (ventas $)" },
-  { value: 2, label: "Unidades vendidas" },
+const SORTS = [
+  { value: "gmv", label: "GMV (ventas $)" },
+  { value: "units", label: "Unidades vendidas" },
+  { value: "creators", label: "Nº de creators" },
 ];
 
 function fmtMoney(n) {
@@ -27,30 +28,63 @@ function fmtMoney(n) {
 }
 function fmtNum(n) {
   if (n == null) return "—";
-  return new Intl.NumberFormat("es-ES").format(n);
+  return new Intl.NumberFormat("es-ES").format(Math.round(n));
 }
-function defaultDate() {
+function yesterday() {
   const d = new Date();
-  d.setDate(d.getDate() - 3);
+  d.setDate(d.getDate() - 1);
   return d.toISOString().slice(0, 10);
+}
+function prettyDate(iso) {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
 }
 
 function LogoMark() {
   return (
     <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-      <path d="M24 66 L42 48 L55 59 L74 32" stroke="white" strokeWidth="8.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M61 32 H74 V45" stroke="white" strokeWidth="8.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="24" cy="66" r="6.5" fill="white" />
+      <rect x="24" y="52" width="13" height="24" rx="4" fill="#06120b" />
+      <rect x="43" y="40" width="13" height="36" rx="4" fill="#06120b" />
+      <rect x="62" y="26" width="13" height="50" rx="4" fill="#06120b" />
+      <path d="M62 24 L68.5 14 L75 24 Z" fill="#06120b" />
     </svg>
   );
 }
 
+// Contador animado de 0 → value
+function useCountUp(value, duration = 900) {
+  const [n, setN] = useState(0);
+  const ref = useRef();
+  useEffect(() => {
+    const start = performance.now();
+    const from = 0;
+    cancelAnimationFrame(ref.current);
+    const tick = (t) => {
+      const p = Math.min(1, (t - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setN(from + (value - from) * eased);
+      if (p < 1) ref.current = requestAnimationFrame(tick);
+    };
+    ref.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(ref.current);
+  }, [value, duration]);
+  return n;
+}
+
+function StatMoney({ value }) { return <>{fmtMoney(useCountUp(value))}</>; }
+function StatNum({ value }) { return <>{fmtNum(useCountUp(value))}</>; }
+
+function sortItems(items, sort) {
+  const key = sort === "units" ? "unitsSold" : sort === "creators" ? "influencers" : "gmv";
+  return [...items].sort((a, b) => (b[key] || 0) - (a[key] || 0)).map((p, i) => ({ ...p, rank: i + 1 }));
+}
+
 export default function Home() {
   const [region, setRegion] = useState("US");
-  const [date, setDate] = useState(defaultDate());
-  const [rankField, setRankField] = useState(1);
+  const [date, setDate] = useState(yesterday());
+  const [sort, setSort] = useState("gmv");
   const [page, setPage] = useState(1);
-  const [items, setItems] = useState([]);
+  const [raw, setRaw] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isDemo, setIsDemo] = useState(false);
@@ -60,24 +94,27 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      const qs = new URLSearchParams({ region, date, rankField, page, pageSize: 10 });
+      const qs = new URLSearchParams({ region, date, rankField: 1, page, pageSize: 10 });
       const res = await fetch(`/api/products?${qs}`);
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || "Error");
-      setItems(json.items);
+      setRaw(json.items);
       setIsDemo(!!json.demo);
     } catch (e) {
       setError(e.message);
-      setItems([]);
+      setRaw([]);
     } finally {
       setLoading(false);
     }
-  }, [region, date, rankField, page]);
+  }, [region, date, page]);
 
   useEffect(() => { load(); }, [load]);
 
+  const items = sortItems(raw, sort);
+  const maxGmv = Math.max(1, ...items.map((p) => p.gmv || 0));
   const totalGmv = items.reduce((s, p) => s + (p.gmv || 0), 0);
   const totalUnits = items.reduce((s, p) => s + (p.unitsSold || 0), 0);
+  const ready = !loading && !error && items.length > 0;
 
   return (
     <>
@@ -85,25 +122,33 @@ export default function Home() {
         <div className="wrap nav-inner">
           <div className="brand">
             <span className="brand-mark"><LogoMark /></span>
-            <span className="wordmark"><span className="dim">first</span><span className="accent">100</span><span className="dim">sales</span></span>
+            <span className="wordmark"><span>first</span><span className="accent">100</span><span>sales</span></span>
           </div>
-          <a className="nav-cta" href="#productos">Ver productos top</a>
+          <div className="nav-links">
+            <a href="#ranking">Ranking</a>
+            <a href="#top">Top del día</a>
+            <a className="nav-cta" href="#ranking">Explorar productos</a>
+          </div>
         </div>
       </nav>
 
       <header className="hero">
         <div className="wrap">
-          <span className="badge"><span className="dot" /> Datos de TikTok Shop en tiempo real</span>
-          <h1>Encuentra productos <span className="grad">ganadores</span> y consigue tus primeras 100 ventas</h1>
+          <span className="badge"><span className="dot" /> Productos reales de TikTok Shop · actualizado a diario</span>
+          <h1>Encuentra productos <span className="grad">ganadores</span><br />y consigue tus primeras 100 ventas</h1>
           <p>
-            El radar de productos para creadores que empiezan en TikTok Shop.
-            Descubre qué se está vendiendo de verdad en cada mercado, ordenado por GMV,
-            y pide muestras a las tiendas que mejor funcionan.
+            El radar de productos para creadores que empiezan en TikTok Shop. Mira qué se vende
+            de verdad en cada mercado, ordenado por GMV, y pide muestras a las mejores tiendas.
           </p>
+          <div className="chips">
+            <span className="chip"><span className="ic">●</span> <b>9</b> mercados</span>
+            <span className="chip"><span className="ic">↗</span> ordenado por <b>GMV real</b></span>
+            <span className="chip"><span className="ic">✦</span> datos de <b>{prettyDate(date)}</b></span>
+          </div>
         </div>
       </header>
 
-      <main className="wrap" id="productos">
+      <main className="wrap" id="ranking">
         <div className="controls">
           <div className="field">
             <label>Mercado</label>
@@ -112,25 +157,52 @@ export default function Home() {
             </select>
           </div>
           <div className="field">
-            <label>Fecha (últimos ~30 días)</label>
+            <label>Fecha</label>
             <input type="date" value={date} onChange={(e) => { setPage(1); setDate(e.target.value); }} />
           </div>
           <div className="field">
             <label>Ordenar por</label>
-            <select value={rankField} onChange={(e) => { setPage(1); setRankField(Number(e.target.value)); }}>
-              {RANK_FIELDS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+            <select value={sort} onChange={(e) => setSort(e.target.value)}>
+              {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
-          <button className="btn" onClick={load} disabled={loading}>
-            {loading ? "Cargando…" : "Actualizar"}
-          </button>
-          {isDemo && <span className="demo-pill">✦ Datos de muestra (demo)</span>}
+          <button className="btn" onClick={load} disabled={loading}>{loading ? "Cargando…" : "Actualizar"}</button>
+          {isDemo && <span className="demo-pill">✦ Datos de ejemplo (demo)</span>}
         </div>
 
         <div className="stats">
-          <div className="stat"><div className="k">Productos</div><div className="v">{items.length}</div></div>
-          <div className="stat"><div className="k">GMV (página)</div><div className="v money">{fmtMoney(totalGmv)}</div></div>
-          <div className="stat"><div className="k">Unidades (página)</div><div className="v">{fmtNum(totalUnits)}</div></div>
+          <div className="stat rise"><div className="k">Productos</div><div className="v">{ready ? <StatNum value={items.length} /> : "—"}</div></div>
+          <div className="stat rise" style={{ animationDelay: "60ms" }}><div className="k">GMV combinado (página)</div><div className="v accent">{ready ? <StatMoney value={totalGmv} /> : "—"}</div></div>
+          <div className="stat rise" style={{ animationDelay: "120ms" }}><div className="k">Unidades vendidas (página)</div><div className="v">{ready ? <StatNum value={totalUnits} /> : "—"}</div></div>
+        </div>
+
+        {ready && page === 1 && items.length >= 3 && (
+          <section id="top">
+            <div className="sec-head">
+              <h2>🏆 Top 3 del día</h2>
+              <span className="hint">{REGIONS.find((r) => r.code === region)?.name} · {prettyDate(date)}</span>
+            </div>
+            <div className="podium">
+              {items.slice(0, 3).map((p) => (
+                <div key={p.productId} className={`pod rise feat-${p.rank}`} style={{ animationDelay: `${p.rank * 70}ms` }} onClick={() => setSelected(p)}>
+                  <span className={`pod-rank pod-${p.rank}`}>{p.rank}</span>
+                  <div className="pod-name">{p.name}</div>
+                  <div className="pod-gmv">{fmtMoney(p.gmv)}</div>
+                  <div className="pod-sub">GMV · {sort === "units" ? "ordenado por unidades" : sort === "creators" ? "ordenado por creators" : "ordenado por GMV"}</div>
+                  <div className="pod-foot">
+                    <span><b>{fmtNum(p.unitsSold)}</b> uds</span>
+                    <span><b>{fmtNum(p.influencers)}</b> creators</span>
+                    <span><b>{p.commissionRate ? `${p.commissionRate}%` : "—"}</b> comisión</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <div className="sec-head">
+          <h2>Ranking completo</h2>
+          <span className="hint">Haz clic en un producto para ver la ficha y la tienda</span>
         </div>
 
         <div className="table-wrap">
@@ -145,33 +217,28 @@ export default function Home() {
                   <th className="num">Precio medio</th>
                   <th className="num">Comisión</th>
                   <th className="num">Creators</th>
-                  <th className="num">Vídeos</th>
                 </tr>
               </thead>
               <tbody>
-                {loading && <tr><td colSpan={8} className="msg"><span className="spin" /></td></tr>}
+                {loading && <tr><td colSpan={7} className="msg"><span className="spin" /></td></tr>}
                 {!loading && error && (
-                  <tr><td colSpan={8} className="msg error">
-                    <div className="big">No se pudieron cargar los productos</div>
-                    <div>{error}</div>
-                  </td></tr>
+                  <tr><td colSpan={7} className="msg error"><div className="big">No se pudieron cargar los productos</div><div>{error}</div></td></tr>
                 )}
                 {!loading && !error && items.length === 0 && (
-                  <tr><td colSpan={8} className="msg">
-                    <div className="big">Sin datos para este mercado y fecha</div>
-                    <div>Prueba con otro mercado o una fecha de los últimos 30 días.</div>
-                  </td></tr>
+                  <tr><td colSpan={7} className="msg"><div className="big">Sin datos para este mercado y fecha</div><div>Prueba con otro mercado o una fecha de los últimos 30 días.</div></td></tr>
                 )}
-                {!loading && !error && items.map((p) => (
-                  <tr key={p.productId} onClick={() => setSelected(p)}>
+                {ready && items.map((p, i) => (
+                  <tr key={p.productId} className="rise" style={{ animationDelay: `${Math.min(i, 10) * 35}ms` }} onClick={() => setSelected(p)}>
                     <td><span className={`rank ${p.rank <= 3 ? `top rank-${p.rank}` : ""}`}>{p.rank}</span></td>
                     <td className="pname"><div className="line">{p.name}</div></td>
-                    <td className="num gmv">{fmtMoney(p.gmv)}</td>
+                    <td className="num gmv-cell">
+                      <div className="gmv-val">{fmtMoney(p.gmv)}</div>
+                      <div className="gmv-bar-track"><div className="gmv-bar" style={{ width: `${Math.max(6, (p.gmv / maxGmv) * 100)}%`, marginLeft: "auto" }} /></div>
+                    </td>
                     <td className="num">{fmtNum(p.unitsSold)}</td>
                     <td className="num">{p.avgPrice != null ? `$${p.avgPrice}` : "—"}</td>
                     <td className="num muted-cell">{p.commissionRate ? `${p.commissionRate}%` : "—"}</td>
                     <td className="num muted-cell">{fmtNum(p.influencers)}</td>
-                    <td className="num muted-cell">{fmtNum(p.videos)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -180,8 +247,16 @@ export default function Home() {
           <div className="pager">
             <button className="btn btn-ghost" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>← Anterior</button>
             <span className="pill">Página {page}</span>
-            <button className="btn btn-ghost" disabled={loading || items.length < 10} onClick={() => setPage((p) => p + 1)}>Siguiente →</button>
+            <button className="btn btn-ghost" disabled={loading || raw.length < 10} onClick={() => setPage((p) => p + 1)}>Siguiente →</button>
           </div>
+        </div>
+
+        <div className="cta-band">
+          <div>
+            <h3>¿List@ para tu primera venta?</h3>
+            <p>Elige un producto ganador, pide una muestra a la tienda y empieza a crear. Tu meta: las primeras 100 ventas.</p>
+          </div>
+          <a className="btn-dark" href="#top">Ver el top del día →</a>
         </div>
 
         <div className="footer">
@@ -224,7 +299,7 @@ function ProductDrawer({ item, onClose }) {
         <div className="region-tag">Mercado: {item.region} · Rank #{item.rank}</div>
 
         <div className="kv">
-          <div className="k">GMV</div><div className="v gmv" style={{ color: "var(--money)" }}>{fmtMoney(item.gmv)}</div>
+          <div className="k">GMV</div><div className="v gmv">{fmtMoney(item.gmv)}</div>
           <div className="k">Unidades vendidas</div><div className="v">{fmtNum(item.unitsSold)}</div>
           <div className="k">Precio</div><div className="v">{item.minPrice === item.maxPrice ? `$${item.minPrice}` : `$${item.minPrice} – $${item.maxPrice}`}</div>
           <div className="k">Comisión afiliado</div><div className="v">{item.commissionRate ? `${item.commissionRate}%` : "—"}</div>
@@ -237,11 +312,8 @@ function ProductDrawer({ item, onClose }) {
         {detail && (
           <>
             {detail.images.length > 0 && (
-              <div className="gallery">
-                {detail.images.map((src, i) => <img key={i} src={src} alt="" loading="lazy" />)}
-              </div>
+              <div className="gallery">{detail.images.map((src, i) => <img key={i} src={src} alt="" loading="lazy" />)}</div>
             )}
-
             <div className="section-title">Tienda · pedir muestras</div>
             <div className="box">
               <div className="kv" style={{ margin: 0 }}>
@@ -251,21 +323,16 @@ function ProductDrawer({ item, onClose }) {
               </div>
               <a className="link-btn" href={detail.tiktokUrl} target="_blank" rel="noreferrer">Abrir en TikTok Shop ↗</a>
             </div>
-
             {detail.skus.length > 0 && (
               <>
                 <div className="section-title">Variantes ({detail.skus.length})</div>
                 <div className="box">
                   {detail.skus.slice(0, 8).map((s, i) => (
-                    <div key={i} className="sku-row">
-                      <span className="muted-cell">SKU {s.sku_id}</span>
-                      <span>{s.real_price?.price_str || ""}</span>
-                    </div>
+                    <div key={i} className="sku-row"><span className="muted-cell">SKU {s.sku_id}</span><span>{s.real_price?.price_str || ""}</span></div>
                   ))}
                 </div>
               </>
             )}
-
             {detail.description && (
               <>
                 <div className="section-title">Descripción</div>
