@@ -21,13 +21,14 @@ export async function POST(request) {
 
   const name = (body.name || "").toString().trim().slice(0, 120);
   const email = (body.email || "").toString().trim().toLowerCase().slice(0, 200);
+  const phone = (body.phone || "").toString().trim().slice(0, 40);
   const source = (body.source || "clase").toString().slice(0, 40);
 
   if (!isEmail(email)) {
     return Response.json({ ok: false, error: "Email no válido" }, { status: 400 });
   }
 
-  const lead = { name, email, source, ts: new Date().toISOString() };
+  const lead = { name, email, phone, source, ts: new Date().toISOString() };
   try {
     await fs.mkdir(path.dirname(FILE), { recursive: true });
     await fs.appendFile(FILE, JSON.stringify(lead) + "\n", "utf8");

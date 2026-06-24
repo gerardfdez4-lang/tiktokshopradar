@@ -30,6 +30,7 @@ export default function ClasePage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
 
@@ -44,7 +45,7 @@ export default function ClasePage() {
       await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, source: "clase" }),
+        body: JSON.stringify({ name, email, phone, source: "clase" }),
       });
       try { localStorage.setItem("f100_lead", "1"); } catch {}
       router.push("/clase/ver");
@@ -74,13 +75,14 @@ export default function ClasePage() {
             <div className="col">
               <input className="c-input" placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} />
               <input className="c-input" type="email" placeholder="Tu mejor email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <input className="c-input" type="tel" placeholder="Teléfono (WhatsApp / SMS) — opcional" value={phone} onChange={(e) => setPhone(e.target.value)} />
               <button className="c-submit" type="submit" disabled={sending}>
                 {sending ? "Entrando…" : "Ver la clase gratis →"}
               </button>
             </div>
           </form>
           {error && <div className="c-formnote" style={{ color: "#ff6b6b" }}>{error}</div>}
-          <div className="c-formnote">100% gratis · acceso inmediato · sin spam</div>
+          <div className="c-formnote">100% gratis · acceso inmediato · sin spam. Si dejas tu teléfono, aceptas recibir avisos por WhatsApp/SMS.</div>
 
           <div className="c-bullets">
             {BULLETS.map((b, i) => (
