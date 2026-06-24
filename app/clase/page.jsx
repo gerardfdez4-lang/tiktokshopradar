@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const BULLETS = [
-  "Por qué TikTok Shop USA es el mercado más rentable del mundo (y cómo entrar desde donde estés)",
+  "Por qué el mercado hispano de TikTok Shop USA es una mina de oro sin explotar (y por qué ser latino aquí es tu ventaja)",
   "El método exacto para encontrar productos ganadores antes de que se saturen",
   "Cómo conseguir muestras y creators que vendan tu producto por ti",
   "El error que arruina al 90% de los que empiezan (y cómo evitarlo)",

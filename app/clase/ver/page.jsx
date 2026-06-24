@@ -9,7 +9,7 @@ export const metadata = {
 
 const MODULES = [
   { t: "Fundamentos de TikTok Shop USA", d: "Por qué es el mercado más rentable del mundo y cómo funciona por dentro." },
-  { t: "Entra al mercado US desde fuera", d: "El setup cross-border paso a paso: entidad, pagos, logística e impuestos." },
+  { t: "Tu ventaja: el mercado hispano en USA", d: "Cómo vender en español a los 60M+ de hispanos en USA — una audiencia enorme y poco atendida." },
   { t: "Encuentra productos ganadores", d: "Usa la herramienta first100sales (incluida) para detectar lo que va a petar antes que nadie." },
   { t: "Contenido que vende", d: "Hooks, formatos virales y el guion que convierte visitas en ventas." },
   { t: "Afiliados y muestras", d: "Consigue creators y muestras para que otros vendan tu producto por ti." },
@@ -18,7 +18,7 @@ const MODULES = [
 
 const FAQ = [
   { q: "¿Necesito experiencia previa?", a: "No. El curso empieza desde cero y te lleva paso a paso hasta tus primeras ventas." },
-  { q: "¿Funciona si no vivo en USA?", a: "Sí. Justamente enseño cómo entrar al mercado de TikTok Shop USA desde fuera, que es como lo hago yo." },
+  { q: "¿Necesito hablar inglés perfecto?", a: "No. Puedes crear contenido en español para el enorme mercado hispano de USA — es justo tu mayor ventaja frente a la competencia." },
   { q: "¿Qué es la herramienta incluida?", a: "first100sales: una herramienta que te muestra los productos que más venden en TikTok Shop por mercado, ordenados por GMV, para que encuentres ganadores rápido. Va incluida gratis con el curso." },
   { q: "¿Cómo accedo después de comprar?", a: "Acceso inmediato y de por vida a todo el curso, las actualizaciones y la herramienta." },
   { q: "¿Hay garantía?", a: "Sí, tienes 7 días de garantía. Si no es para ti, te devolvemos el dinero." },
